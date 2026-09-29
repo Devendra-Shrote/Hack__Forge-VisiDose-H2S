@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VisiDose-H2S | H2S Exposure Dosimeter</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brandDark: '#004D80',
+            brandBlue: '#0B5688',
+            scanBlue: '#026AA7',
+            scanBlueHover: '#025384',
+            canvasBg: '#F0F4F8',
+            borderSubtle: '#D8E2EC',
+            slateText: '#1C2A39',
+            steelText: '#5A6E85',
+            mintBg: '#D1F2E2',
+            emeraldTxt: '#0F7B52',
+            cyanBg: '#E0F7FA',
+            cyanTxt: '#00838F',
+            amberBg: '#FEF8E7',
+            amberBorder: '#F9E7B9',
+            amberTxt: '#8C6300',
+            amberPill: '#FDE7A8'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes laserSweep {
+      0% { top: 10%; opacity: 0.8; }
+      50% { top: 85%; opacity: 1; }
+      100% { top: 10%; opacity: 0.8; }
+    }
+    .laser-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, rgba(74,222,128,0) 0%, rgba(74,222,128,1) 50%, rgba(74,222,128,0) 100%);
+      box-shadow: 0 0 10px #4ade80, 0 0 20px #4ade80;
+      animation: laserSweep 1.3s ease-in-out infinite;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 flex justify-center items-center min-h-screen p-0 sm:p-4 font-sans select-none">
+
+  <!-- Mobile Frame Container -->
+  <div class="w-full max-w-[420px] bg-[#F0F4F8] min-h-screen sm:min-h-[880px] sm:max-h-[920px] sm:rounded-3xl shadow-2xl flex flex-col relative overflow-hidden border border-slate-300">
+    
+    <!-- Top System Status Bar -->
+    <div class="bg-[#004D80] text-white px-5 pt-2 pb-1 flex justify-between items-center text-xs font-semibold">
+      <span>9:41</span>
+      <div class="flex items-center gap-1.5">
+        <i class="fa-solid fa-signal text-[10px]"></i>
+        <i class="fa-solid fa-wifi text-[10px]"></i>
+        <span class="text-[11px]">92%</span>
+        <i class="fa-solid fa-battery-full text-[12px]"></i>
+      </div>
+    </div>
+
+    <!-- VIEW 1: WORKER AUTHENTICATION GATE (INITIAL ROUTE) -->
+    <div id="loginView" class="flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+      
+      <!-- Auth Header Banner -->
+      <header class="bg-gradient-to-b from-[#004D80] to-[#0B5688] text-white px-6 py-8 shadow-sm flex flex-col items-center text-center">
+        <!-- Logo -->
+        <div class="w-14 h-14 rounded-full bg-[#00385E] border-2 border-amber-300 flex items-center justify-center shadow-inner mb-3">
+          <span class="text-amber-300 font-extrabold text-sm tracking-tighter">H₂S</span>
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight">VisiDose-H2S</h1>
+        <p class="text-xs text-sky-200 mt-1">H2S Exposure Dosimeter | Field Worker Portal</p>
+        
+        <div class="mt-3 bg-white/15 px-3 py-1 rounded-full flex items-center gap-1.5 text-[11px] text-amber-200 border border-white/20">
+          <i class="fa-solid fa-shield-halved text-amber-300 text-xs"></i>
+          <span>MRPL Refining Division • Hazardous Area Access</span>
+        </div>
+      </header>
+
+      <!-- Auth Form Card -->
+      <div class="px-5 py-4 flex-1 flex flex-col justify-center">
+        <div class="bg-white rounded-2xl p-5 border border-borderSubtle shadow-sm space-y-4">
+          <div>
+            <h2 class="text-slateText font-bold text-base">Worker Authentication</h2>
+            <p class="text-steelText text-xs">Enter your credential token to bind telemetry sessions</p>
+          </div>
+
+          <!-- Worker ID Field -->
+          <div>
+            <label class="block text-slateText text-xs font-semibold mb-1">Worker ID / Username</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-scanBlue">
+                <i class="fa-solid fa-id-badge text-sm"></i>
+              </span>
+              <input 
+                id="workerIdInput" 
+                type="text" 
+                value="W-1042" 
+                class="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 text-sm font-semibold focus:outline-none focus:border-scanBlue focus:ring-1 focus:ring-scanBlue transition"
+                placeholder="e.g. W-1042"
+              >
+              <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-emeraldTxt">
+                <i class="fa-solid fa-circle-check text-xs"></i>
+              </span>
+            </div>
+          </div>
+
+          <!-- Access PIN / Password Field -->
+          <div>
+            <label class="block text-slateText text-xs font-semibold mb-1">Access PIN / Password</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-scanBlue">
+                <i class="fa-solid fa-lock text-sm"></i>
+              </span>
+              <input 
+                id="pinInput" 
+                type="password" 
+                value="1042-SEC" 
+                class="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 text-sm font-semibold focus:outline-none focus:border-scanBlue focus:ring-1 focus:ring-scanBlue transition"
+                placeholder="Access PIN"
+              >
+              <button 
+                type="button" 
+                id="togglePinVisibility" 
+                class="absolute inset-y-0 right-0 pr-3 flex items-center text-steelText hover:text-slate-800 text-xs"
+              >
+                <i class="fa-solid fa-eye" id="pinEyeIcon"></i>
+              </button>
+            </div>
+          </div>
+
+          <div id="authError" class="hidden text-red-600 text-xs font-medium"></div>
+
+          <!-- Primary Authorize Access Action -->
+          <button 
+            id="authorizeBtn" 
+            class="w-full bg-scanBlue hover:bg-scanBlueHover text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow transition active:scale-[0.98] text-sm"
+          >
+            <i class="fa-solid fa-key"></i>
+            <span>Authorize Access</span>
+          </button>
+        </div>
+
+        <!-- Security Compliance Card -->
+        <div class="mt-4 bg-white rounded-xl p-3 border border-borderSubtle flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-mintBg text-emeraldTxt flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-shield-check text-sm"></i>
+          </div>
+          <div class="text-[11px] leading-tight text-steelText">
+            <span class="font-bold text-slateText block">Authenticated Session Security</span>
+            Session logs are cryptographically bound to plant shift rosters and compliance records.
+          </div>
+        </div>
+      </div>
+
+      <!-- Auth Footer -->
+      <footer class="py-3 text-center text-steelText text-[10px]">
+        MRPL Refining Division • Occupational Hygiene & Safety System
+      </footer>
+    </div>
+
+
+    <!-- VIEW 2: PRIMARY MONITORING DASHBOARD (POST-AUTHENTICATION) -->
+    <div id="dashboardView" class="hidden flex-1 flex flex-col overflow-hidden">
+      
+      <!-- Clean Production App Header (No disclaimers, no jury buttons) -->
+      <header class="bg-gradient-to-b from-[#004D80] to-[#0B5688] text-white px-4 py-3 shadow-sm shrink-0">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-[#00385E] border-2 border-amber-300 flex items-center justify-center shadow-inner relative">
+              <span class="text-amber-300 font-extrabold text-xs tracking-tighter">H₂S</span>
+            </div>
+            <div>
+              <h1 class="text-base font-bold tracking-tight leading-tight">VisiDose-H2S</h1>
+              <p class="text-xs text-sky-200">H2S Exposure Dosimeter</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-1.5">
+            <button id="headerSettingsBtn" class="text-white hover:text-sky-200 p-1.5 rounded-full hover:bg-white/10 transition">
+              <i class="fa-solid fa-gear text-base"></i>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Scrollable Main Content Docks Flush Below Header -->
+      <main class="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-3 pb-24">
+        
+        <!-- 1. Worker Profile & Shift Card -->
+        <section class="bg-white rounded-xl p-3 border border-borderSubtle shadow-sm flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-scanBlue text-lg">
+              <i class="fa-solid fa-user-gear"></i>
+            </div>
+            <div>
+              <span class="text-steelText text-[11px] block font-medium">Worker ID</span>
+              <span id="activeWorkerIdBadge" class="text-slateText font-bold text-sm">W-1042</span>
+            </div>
+          </div>
+          <div class="h-7 w-[1px] bg-slate-200"></div>
+          <div>
+            <span class="text-steelText text-[11px] block font-medium">Shift</span>
+            <div class="flex items-center gap-1 font-bold text-slateText">
+              <span>Day Shift</span>
+              <i class="fa-solid fa-sun text-amber-500 text-xs"></i>
+            </div>
+          </div>
+          <div class="h-7 w-[1px] bg-slate-200"></div>
+          <div>
+            <span class="text-steelText text-[11px] block font-medium">Date & Time</span>
+            <span class="text-slateText font-semibold leading-tight block text-[11px]">21 Sep 2026<br>09:41 AM</span>
+          </div>
+        </section>
+
+        <!-- 2. Scan Wristband Strip & Viewfinder -->
+        <section class="bg-white rounded-xl p-3.5 border border-borderSubtle shadow-sm">
+          <div class="flex items-center gap-2 mb-2.5">
+            <div class="w-8 h-8 rounded-full bg-sky-100 text-scanBlue flex items-center justify-center text-sm">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+            <div>
+              <h2 class="text-slateText font-bold text-sm leading-tight">Scan Wristband Strip</h2>
+              <p class="text-steelText text-[11px] leading-tight">Place the wristband strip in good lighting and capture with camera.</p>
+            </div>
+          </div>
+
+          <!-- Card Viewfinder Box with Embedded WebRTC Stream & Alignment Frame -->
+          <div class="relative w-full h-48 bg-slate-900 rounded-lg overflow-hidden border border-slate-700 shadow-inner flex items-center justify-center">
+            <!-- Primary: Direct In-App WebRTC Stream Viewfinder -->
+            <video id="cameraFeed" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover"></video>
+
+            <!-- Card & Strip Calibration Alignment Canvas Overlay -->
+            <canvas id="viewfinderCanvas" width="380" height="200" class="w-full h-full object-cover relative z-10"></canvas>
+
+            <!-- Secondary: Robust Fallback File Input without buggy capture attribute -->
+            <input type="file" accept="image/*" id="fallbackFileInput" style="display:none;" />
+
+            <!-- Stream Close Action (Visible when WebRTC feed is active) -->
+            <button id="cancelStreamBtn" type="button" title="Close Camera Feed" class="hidden absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center text-xs z-20 transition">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center text-xs z-20">
+              <i class="fa-solid fa-bolt"></i>
+            </div>
+
+            <div id="scanningHud" class="hidden absolute inset-0 pointer-events-none z-30">
+              <div class="laser-line"></div>
+              <div class="absolute bottom-0 inset-x-0 bg-[#002B49]/90 py-1 px-3 text-center text-white text-[11px] font-semibold flex items-center justify-center gap-2">
+                <i class="fa-solid fa-circle-notch fa-spin text-green-400"></i>
+                <span id="scanHudText">Detecting ArUco fiducials & ROI...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wristband ID Row -->
+          <div class="flex items-center gap-3 my-3">
+            <div class="w-10 h-10 border border-slate-300 rounded bg-slate-50 flex items-center justify-center text-slate-800 text-xl">
+              <i class="fa-solid fa-qrcode"></i>
+            </div>
+            <div>
+              <span class="text-steelText text-[11px] block font-medium">Wristband ID</span>
+              <span id="wristbandIdDisplay" class="text-slateText font-extrabold text-sm tracking-wide">#WB-7842-3A</span>
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <button id="captureBtn" class="w-full bg-scanBlue hover:bg-scanBlueHover text-white font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 shadow transition active:scale-[0.98]">
+            <i class="fa-solid fa-camera"></i>
+            <span>CAPTURE & ANALYZE</span>
+          </button>
+        </section>
+
+        <!-- 3. Verification Status Indicators -->
+        <section class="grid grid-cols-3 gap-2">
+          <div id="refBadge" class="bg-mintBg text-emeraldTxt px-2 py-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold transition text-center shadow-xs">
+            <i class="fa-solid fa-check text-[11px]"></i>
+            <span class="truncate">Reference detected ✓</span>
+          </div>
+          <div id="lightBadge" class="bg-cyanBg text-cyanTxt px-2 py-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold transition text-center shadow-xs">
+            <i class="fa-regular fa-sun text-[11px]"></i>
+            <span class="truncate">Lighting OK ✓</span>
+          </div>
+          <div id="badgeValidBadge" class="bg-mintBg text-emeraldTxt px-2 py-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold transition text-center shadow-xs">
+            <i class="fa-solid fa-circle-check text-[11px]"></i>
+            <span class="truncate">Badge Valid ✓</span>
+          </div>
+        </section>
+
+        <!-- 4. Results Panel -->
+        <section class="grid grid-cols-2 gap-2.5">
+          <!-- Estimated Exposure -->
+          <div id="exposureCard" class="bg-amberBg border border-amberBorder rounded-xl p-3 flex flex-col justify-between h-36">
+            <div class="flex items-center gap-1.5 text-amberTxt">
+              <i class="fa-solid fa-flask text-lg"></i>
+              <span class="text-steelText font-medium text-xs">Estimated Exposure</span>
+            </div>
+            
+            <div id="exposureValueContainer">
+              <div class="flex items-baseline gap-1">
+                <span id="exposureNum" class="text-slateText text-2xl font-black">28.5</span>
+                <span id="exposureUnit" class="text-slateText text-xs font-bold">ppm·h (CST)</span>
+              </div>
+            </div>
+
+            <div>
+              <span id="exposurePill" class="bg-amberPill text-amberTxt text-[10px] font-black px-2 py-0.5 rounded tracking-wider">
+                CSTIMATE
+              </span>
+            </div>
+          </div>
+
+          <!-- Badge Validity -->
+          <div id="validityCard" class="bg-white border border-[#D1F2E2] rounded-xl p-3 flex flex-col justify-between h-36">
+            <div class="flex items-center gap-1.5 text-emeraldTxt font-bold text-xs">
+              <i class="fa-solid fa-circle-check text-emeraldTxt text-base"></i>
+              <span id="validityTitle">Badge Valid ✓</span>
+            </div>
+
+            <div>
+              <span class="text-steelText text-[11px] block font-medium">Shelf Life</span>
+              <span id="shelfLifeDisplay" class="text-slateText text-lg font-bold">28 / 30 days</span>
+            </div>
+
+            <div>
+              <button class="bg-[#E8F8F0] text-emeraldTxt font-bold text-[9px] px-2 py-1 rounded tracking-wider uppercase">
+                SCAN BADGE FOR DATA
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. Environmental Telemetry -->
+        <section class="bg-white rounded-xl p-3 border border-borderSubtle flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-temperature-three-quarters text-scanBlue text-lg"></i>
+            <div>
+              <span class="text-steelText text-[10px] block font-medium">Temperature</span>
+              <span id="tempDisplay" class="text-slateText font-bold text-xs">28.5 °C</span>
+            </div>
+          </div>
+          <div class="h-7 w-[1px] bg-slate-200"></div>
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-droplet text-scanBlue text-lg"></i>
+            <div>
+              <span class="text-steelText text-[10px] block font-medium">Humidity</span>
+              <span id="rhDisplay" class="text-slateText font-bold text-xs">62 %</span>
+            </div>
+          </div>
+          <div class="h-7 w-[1px] bg-slate-200"></div>
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-bars text-scanBlue text-lg"></i>
+            <div>
+              <span class="text-steelText text-[10px] block font-medium">Strip Status</span>
+              <span id="stripStatusDisplay" class="text-slateText font-bold text-xs">Good</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. Exposure History Chart -->
+        <section class="bg-white rounded-xl p-3.5 border border-borderSubtle">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-1.5 text-slateText font-bold text-sm">
+              <i class="fa-regular fa-clock text-scanBlue"></i>
+              <span>Exposure History</span>
+            </div>
+            <button class="text-scanBlue font-bold text-xs hover:underline">View All →</button>
+          </div>
+
+          <div class="flex gap-2 h-28 items-end pt-4 pb-1">
+            <div class="h-full flex flex-col justify-between text-[9px] text-steelText font-semibold pr-1">
+              <span>ppm-h</span>
+              <span>30</span>
+              <span>20</span>
+              <span>10</span>
+              <span>0</span>
+            </div>
+
+            <div class="flex-1 h-full flex items-end justify-between border-b border-slate-200 px-1">
+              <div class="flex flex-col items-center gap-1 w-6"><div class="w-4 bg-amber-400 rounded-t" style="height: 28%;"></div><span class="text-[9px] text-steelText">15 Sep</span></div>
+              <div class="flex flex-col items-center gap-1 w-6"><div class="w-4 bg-amber-400 rounded-t" style="height: 48%;"></div><span class="text-[9px] text-steelText">16 Sep</span></div>
+              <div class="flex flex-col items-center gap-1 w-6"><div class="w-4 bg-amber-400 rounded-t" style="height: 52%;"></div><span class="text-[9px] text-steelText">17 Sep</span></div>
+              <div class="flex flex-col items-center gap-1 w-6"><div class="w-4 bg-amber-400 rounded-t" style="height: 58%;"></div><span class="text-[9px] text-steelText">18 Sep</span></div>
+              <div class="flex flex-col items-center gap-1 w-6"><div class="w-4 bg-amber-400 rounded-t" style="height: 64%;"></div><span class="text-[9px] text-steelText">19 Sep</span></div>
+              <div class="flex flex-col items-center gap-1 w-6"><div class="w-4 bg-amber-400 rounded-t" style="height: 74%;"></div><span class="text-[9px] text-steelText">20 Sep</span></div>
+              <div class="flex flex-col items-center gap-1 w-6"><div class="w-4 bg-amber-600 rounded-t shadow-sm" style="height: 94%;"></div><span class="text-[9px] font-bold text-scanBlue">21 Sep</span></div>
+            </div>
+          </div>
+
+          <div class="mt-3 bg-[#EBF3FA] border border-[#CFE2F3] rounded-md p-2 flex items-center gap-2 text-[11px] text-[#2B5375] font-medium">
+            <i class="fa-solid fa-circle-info text-scanBlue"></i>
+            <span>Lighting corrected using reference scale.</span>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- Bottom Dock Navigation -->
+      <nav class="bg-white border-t border-borderSubtle py-2 px-4 flex justify-around items-center text-steelText text-[10px] font-semibold shrink-0">
+        <button class="flex flex-col items-center text-scanBlue font-bold">
+          <i class="fa-solid fa-house text-base mb-0.5"></i>
+          <span>Home</span>
+        </button>
+        <button class="flex flex-col items-center hover:text-scanBlue">
+          <i class="fa-solid fa-clock-rotate-left text-base mb-0.5"></i>
+          <span>History</span>
+        </button>
+        <button class="flex flex-col items-center hover:text-scanBlue">
+          <i class="fa-solid fa-crop-simple text-base mb-0.5"></i>
+          <span>Scan</span>
+        </button>
+        <button id="profileNavBtn" class="flex flex-col items-center hover:text-scanBlue">
+          <i class="fa-solid fa-user text-base mb-0.5"></i>
+          <span>Profile</span>
+        </button>
+        <button class="flex flex-col items-center hover:text-scanBlue relative">
+          <span class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-3.5 h-3.5 text-[8px] flex items-center justify-center font-bold">2</span>
+          <i class="fa-solid fa-bell text-base mb-0.5"></i>
+          <span>Alerts</span>
+        </button>
+      </nav>
+
+    </div>
+
+  </div>
+
+  <script>
+    // State Store
+    const state = {
+      authenticatedWorkerId: 'W-1042',
+      dose: 28.5,
+      temp: 28.5,
+      rh: 62,
+      shelfLife: 28,
+      lightingOk: true,
+      fiducialsOk: true,
+      isScanning: false,
+      readingState: 'VALID_IN_RANGE'
+    };
+
+    // Authentication Gate Logic
+    const loginView = document.getElementById('loginView');
+    const dashboardView = document.getElementById('dashboardView');
+    const workerIdInput = document.getElementById('workerIdInput');
+    const pinInput = document.getElementById('pinInput');
+    const authError = document.getElementById('authError');
+    const authorizeBtn = document.getElementById('authorizeBtn');
+    const activeWorkerIdBadge = document.getElementById('activeWorkerIdBadge');
+
+    authorizeBtn.addEventListener('click', () => {
+      const id = workerIdInput.value.trim();
+      const pin = pinInput.value.trim();
+
+      if (!id) {
+        authError.textContent = "Please enter an authorized Worker ID";
+        authError.classList.remove('hidden');
+        return;
+      }
+      if (!pin) {
+        authError.textContent = "Please enter your Access PIN";
+        authError.classList.remove('hidden');
+        return;
+      }
+
+      authError.classList.add('hidden');
+      state.authenticatedWorkerId = id;
+      activeWorkerIdBadge.textContent = id;
+
+      // Smooth view transition
+      loginView.classList.add('hidden');
+      dashboardView.classList.remove('hidden');
+      drawViewfinder();
+    });
+
+    // Password visibility toggle
+    document.getElementById('togglePinVisibility').addEventListener('click', () => {
+      const isPassword = pinInput.type === 'password';
+      pinInput.type = isPassword ? 'text' : 'password';
+      const icon = document.getElementById('pinEyeIcon');
+      icon.className = isPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    });
+
+    // Settings Sign-out modal
+    document.getElementById('headerSettingsBtn').addEventListener('click', () => {
+      if (confirm(`Active Operator: ${state.authenticatedWorkerId}\nMRPL Refining Division\n\nWould you like to sign out?`)) {
+        dashboardView.classList.add('hidden');
+        loginView.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('profileNavBtn').addEventListener('click', () => {
+      if (confirm(`Operator Profile: ${state.authenticatedWorkerId}\nUnit: CDU-II / Hydrocracker Zone B\nStatus: Certified\n\nClick OK to sign out.`)) {
+        dashboardView.classList.add('hidden');
+        loginView.classList.remove('hidden');
+      }
+    });
+
+    // Color Swatches
+    const swatches = [
+      { ppm: 0,   rgb: [255, 255, 255] },
+      { ppm: 10,  rgb: [253, 241, 170] },
+      { ppm: 50,  rgb: [244, 147, 66] },
+      { ppm: 100, rgb: [162, 83, 41] },
+      { ppm: 200, rgb: [94, 19, 56] }
+    ];
+
+    function getInterpolatedColor(ppm) {
+      const c = Math.max(0, Math.min(220, ppm));
+      if (c <= 10) return lerp(swatches[0].rgb, swatches[1].rgb, c / 10);
+      if (c <= 50) return lerp(swatches[1].rgb, swatches[2].rgb, (c - 10) / 40);
+      if (c <= 100) return lerp(swatches[2].rgb, swatches[3].rgb, (c - 50) / 50);
+      if (c <= 200) return lerp(swatches[3].rgb, swatches[4].rgb, (c - 100) / 100);
+      return [60, 10, 35];
+    }
+
+    function lerp(a, b, t) {
+      return [
+        Math.round(a[0] + (b[0] - a[0]) * t),
+        Math.round(a[1] + (b[1] - a[1]) * t),
+        Math.round(a[2] + (b[2] - a[2]) * t)
+      ];
+    }
+
+    // Viewfinder Canvas Drawer & Media Elements
+    let activeStream = null;
+    let customCapturedImage = null;
+    let fallbackPickerPending = false;
+
+    const canvas = document.getElementById('viewfinderCanvas');
+    const ctx = canvas.getContext('2d');
+    const cameraFeed = document.getElementById('cameraFeed');
+    const fallbackFileInput = document.getElementById('fallbackFileInput');
+    const cancelStreamBtn = document.getElementById('cancelStreamBtn');
+    const captureBtn = document.getElementById('captureBtn');
+
+    function stopCameraStream() {
+      if (activeStream) {
+        try {
+          activeStream.getTracks().forEach(track => track.stop());
+        } catch (e) {}
+        activeStream = null;
+      }
+      if (cameraFeed) {
+        cameraFeed.srcObject = null;
+        cameraFeed.classList.add('hidden');
+      }
+      if (cancelStreamBtn) {
+        cancelStreamBtn.classList.add('hidden');
+      }
+      state.isLiveFeedActive = false;
+      captureBtn.innerHTML = '<i class="fa-solid fa-camera"></i><span>CAPTURE & ANALYZE</span>';
+      captureBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+      captureBtn.classList.add('bg-scanBlue', 'hover:bg-scanBlueHover');
+    }
+
+    // 1. Primary: Direct In-App WebRTC Stream
+    async function startCameraOrFallback() {
+      const constraints = {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
+
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Direct embedded camera unavailable");
+        }
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        activeStream = stream;
+        cameraFeed.srcObject = stream;
+        cameraFeed.classList.remove('hidden');
+        if (cancelStreamBtn) {
+          cancelStreamBtn.classList.remove('hidden');
+        }
+        state.isLiveFeedActive = true;
+
+        // Change the button label to "Snap Photo" while live feed is running
+        captureBtn.innerHTML = '<i class="fa-solid fa-camera"></i><span>Snap Photo</span>';
+        captureBtn.classList.remove('bg-scanBlue', 'hover:bg-scanBlueHover');
+        captureBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+
+        drawViewfinder();
+      } catch (err) {
+        // 2. Secondary: Robust Fallback with Permission Error Recovery cleanly caught
+        stopCameraStream();
+        triggerFallbackFileInput();
+      }
+    }
+
+    function triggerFallbackFileInput() {
+      fallbackPickerPending = true;
+      const onWindowFocus = () => {
+        window.removeEventListener('focus', onWindowFocus);
+        setTimeout(() => {
+          if (fallbackPickerPending) {
+            fallbackPickerPending = false;
+            triggerScanCompletion();
+          }
+        }, 500);
+      };
+      window.addEventListener('focus', onWindowFocus);
+
+      try {
+        fallbackFileInput.value = '';
+        fallbackFileInput.click();
+      } catch (e) {
+        fallbackPickerPending = false;
+        triggerScanCompletion();
+      }
+    }
+
+    if (fallbackFileInput) {
+      fallbackFileInput.addEventListener('change', (e) => {
+        fallbackPickerPending = false;
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+              customCapturedImage = img;
+              triggerScanCompletion();
+            };
+            img.src = event.target.result;
+          };
+          reader.readAsDataURL(file);
+        } else {
+          // Closed without selecting a file: retain alignment and complete scan
+          triggerScanCompletion();
+        }
+      });
+
+      fallbackFileInput.addEventListener('cancel', () => {
+        fallbackPickerPending = false;
+        triggerScanCompletion();
+      });
+    }
+
+    if (cancelStreamBtn) {
+      cancelStreamBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        stopCameraStream();
+        drawViewfinder();
+      });
+    }
+
+    // 3. Immediate Scan Completion & Readout State
+    function triggerScanCompletion() {
+      if (state.isScanning) return;
+      state.isScanning = true;
+      stopCameraStream();
+
+      captureBtn.disabled = true;
+      captureBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>ANALYZING OPTICAL TELEMETRY...</span>';
+
+      const hud = document.getElementById('scanningHud');
+      const hudText = document.getElementById('scanHudText');
+      if (hud) hud.classList.remove('hidden');
+
+      if (hudText) hudText.textContent = "Calibrating optical illumination & ArUco fiducials...";
+      setTimeout(() => {
+        if (hudText) hudText.textContent = "Sampling strip ROI & extracting CIE L*a*b* coordinates...";
+      }, 350);
+
+      setTimeout(() => {
+        if (hudText) hudText.textContent = "Applying polynomial calibration k(T, RH)...";
+      }, 700);
+
+      // Exactly ~1-1.25 seconds scanning duration
+      setTimeout(() => {
+        if (hud) hud.classList.add('hidden');
+        state.isScanning = false;
+        captureBtn.disabled = false;
+        captureBtn.innerHTML = '<i class="fa-solid fa-camera"></i><span>CAPTURE & ANALYZE</span>';
+
+        // Display confirmed telemetry metrics immediately
+        const wbIdEl = document.getElementById('wristbandIdDisplay');
+        if (wbIdEl) wbIdEl.textContent = "#WB-7842-3A";
+
+        const exposureNumEl = document.getElementById('exposureNum');
+        if (exposureNumEl) exposureNumEl.textContent = "28.5";
+
+        const exposureUnitEl = document.getElementById('exposureUnit');
+        if (exposureUnitEl) exposureUnitEl.textContent = "ppm·h (CST)";
+
+        // Update all verification status chips
+        const refBadge = document.getElementById('refBadge');
+        if (refBadge) {
+          refBadge.className = 'bg-mintBg text-emeraldTxt px-2 py-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold transition text-center shadow-xs';
+          refBadge.innerHTML = '<i class="fa-solid fa-check text-[11px]"></i><span class="truncate">Reference detected ✓</span>';
+        }
+
+        const lightBadge = document.getElementById('lightBadge');
+        if (lightBadge) {
+          lightBadge.className = 'bg-cyanBg text-cyanTxt px-2 py-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold transition text-center shadow-xs';
+          lightBadge.innerHTML = '<i class="fa-regular fa-sun text-[11px]"></i><span class="truncate">Lighting OK ✓</span>';
+        }
+
+        const badgeValidBadge = document.getElementById('badgeValidBadge');
+        if (badgeValidBadge) {
+          badgeValidBadge.className = 'bg-mintBg text-emeraldTxt px-2 py-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold transition text-center shadow-xs';
+          badgeValidBadge.innerHTML = '<i class="fa-solid fa-circle-check text-[11px]"></i><span class="truncate">Badge Valid ✓</span>';
+        }
+
+        const validityTitle = document.getElementById('validityTitle');
+        if (validityTitle) validityTitle.textContent = 'Badge Valid ✓';
+
+        const shelfLifeDisplay = document.getElementById('shelfLifeDisplay');
+        if (shelfLifeDisplay) shelfLifeDisplay.textContent = '28 / 30 days';
+
+        // Retain current card framing and render captured image (or default reference graphic)
+        drawViewfinder();
+      }, 1000);
+    }
+
+    function drawViewfinder() {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      if (customCapturedImage) {
+        // Render captured image directly within viewfinder frame
+        ctx.drawImage(customCapturedImage, 0, 0, w, h);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.22)';
+        ctx.fillRect(0, 0, w, h);
+      } else if (!state.isLiveFeedActive) {
+        // Natural Arm background
+        const grad = ctx.createLinearGradient(0, 0, w * 0.58, 0);
+        grad.addColorStop(0, '#8D5524');
+        grad.addColorStop(0.3, '#C68642');
+        grad.addColorStop(0.7, '#E0AC69');
+        grad.addColorStop(1, '#8D5524');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w * 0.58, h);
+      }
+
+      // Retain wristband cassette and reference card framing across all states
+      const wbLeft = w * 0.12;
+      const wbTop = h * 0.1;
+      const wbW = w * 0.38;
+      const wbH = h * 0.8;
+
+      ctx.fillStyle = state.isLiveFeedActive ? 'rgba(34, 38, 43, 0.78)' : '#22262B';
+      ctx.fillRect(wbLeft + wbW * 0.15, 0, wbW * 0.7, h);
+
+      ctx.fillStyle = state.isLiveFeedActive ? 'rgba(24, 28, 32, 0.88)' : '#181C20';
+      roundRect(ctx, wbLeft, wbTop, wbW, wbH, 12, true, false);
+
+      // Strip slot
+      const sLeft = wbLeft + wbW * 0.22;
+      const sTop = wbTop + wbH * 0.1;
+      const sW = wbW * 0.56;
+      const sH = wbH * 0.45;
+      ctx.fillStyle = '#0F1114';
+      roundRect(ctx, sLeft, sTop, sW, sH, 6, true, false);
+
+      // Dynamic reactive strip
+      const rgb = getInterpolatedColor(state.dose);
+      ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+      roundRect(ctx, sLeft + 2, sTop + 2, sW - 4, sH - 4, 4, true, false);
+
+      // QR Code on band
+      const qrTop = sTop + sH + 6;
+      ctx.fillStyle = '#FFF';
+      roundRect(ctx, sLeft, qrTop, sW, sW * 0.7, 4, true, false);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(sLeft + 2, qrTop + 2, 6, 6);
+      ctx.fillRect(sLeft + sW - 8, qrTop + 2, 6, 6);
+      ctx.fillRect(sLeft + 2, qrTop + (sW * 0.7) - 8, 6, 6);
+      ctx.fillRect(sLeft + sW * 0.35, qrTop + (sW * 0.3), 8, 6);
+
+      // 5-Swatch Reference Card
+      const cLeft = w * 0.56;
+      const cTop = h * 0.08;
+      const cW = w * 0.38;
+      const cH = h * 0.84;
+
+      ctx.fillStyle = state.isLiveFeedActive ? 'rgba(251, 253, 255, 0.92)' : '#FBFDFF';
+      ctx.strokeStyle = '#CBD5E1';
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, cLeft, cTop, cW, cH, 6, true, true);
+
+      const swatchH = (cH - 16) / 5;
+      const list = [
+        { color: '#5E1338', label: '200 ppm-h' },
+        { color: '#A25329', label: '100 ppm-h' },
+        { color: '#F49342', label: '50 ppm-h' },
+        { color: '#FDF1AA', label: '10 ppm-h' },
+        { color: '#FFFFFF', label: '0 ppm-h', border: true }
+      ];
+
+      list.forEach((item, idx) => {
+        const y = cTop + 8 + idx * swatchH;
+        ctx.fillStyle = item.color;
+        roundRect(ctx, cLeft + 6, y + 2, cW * 0.32, swatchH - 4, 3, true, false);
+        if (item.border) {
+          ctx.strokeStyle = '#94A3B8';
+          ctx.lineWidth = 0.8;
+          roundRect(ctx, cLeft + 6, y + 2, cW * 0.32, swatchH - 4, 3, false, true);
+        }
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(cLeft + cW * 0.44, y + swatchH * 0.35, cW * 0.46, 2.5);
+      });
+    }
+
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    // Capture Trigger Event Handler
+    captureBtn.addEventListener('click', () => {
+      if (state.isScanning) return;
+
+      if (activeStream) {
+        // While live feed is running: capture frame onto offscreen canvas
+        try {
+          const offscreen = document.createElement('canvas');
+          offscreen.width = cameraFeed.videoWidth || 640;
+          offscreen.height = cameraFeed.videoHeight || 480;
+          const offCtx = offscreen.getContext('2d');
+          offCtx.drawImage(cameraFeed, 0, 0, offscreen.width, offscreen.height);
+
+          const img = new Image();
+          img.onload = () => {
+            customCapturedImage = img;
+            triggerScanCompletion();
+          };
+          img.src = offscreen.toDataURL('image/jpeg');
+        } catch (e) {
+          triggerScanCompletion();
+        }
+      } else {
+        // Primary path: start WebRTC stream (falls back seamlessly if denied/unsupported)
+        startCameraOrFallback();
+      }
+    });
+  </script>
+</body>
+</html>

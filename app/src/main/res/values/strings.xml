@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">VisiDose-H2S</string>
+    <string name="app_subtitle">H2S Exposure Dosimeter</string>
+    <string name="portal_subtitle">H2S Exposure Dosimeter | Field Worker Portal</string>
+</resources>

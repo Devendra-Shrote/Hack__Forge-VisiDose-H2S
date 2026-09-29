@@ -1,0 +1,6 @@
+{
+  "name": "VisiDose-H2S",
+  "description": "Passive colourimetric H2S exposure-dosimeter with AI-based quantitative reading",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
