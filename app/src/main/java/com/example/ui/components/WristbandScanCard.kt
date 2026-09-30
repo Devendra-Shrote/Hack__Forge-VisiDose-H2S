@@ -1,6 +1,10 @@
 package com.example.ui.components
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -61,6 +65,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import java.io.File
 import com.example.model.ReadingState
 import com.example.ui.theme.CardBorder
 import com.example.ui.theme.CuPan0
@@ -91,15 +98,77 @@ fun WristbandScanCard(
         label = "shutter_flash"
     )
 
-    // Device Camera Launcher with Graceful Fallback
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
+    var currentPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var currentPhotoFile by remember { mutableStateOf<File?>(null) }
+
+    // TakePicture launcher with FileProvider URI
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            val bitmap = try {
+                val file = currentPhotoFile
+                if (file != null && file.exists()) {
+                    BitmapFactory.decodeFile(file.absolutePath)
+                } else if (currentPhotoUri != null) {
+                    if (android.os.Build.VERSION.SDK_INT >= 28) {
+                        val source = android.graphics.ImageDecoder.createSource(context.contentResolver, currentPhotoUri!!)
+                        android.graphics.ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                            decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, currentPhotoUri!!)
+                    }
+                } else null
+            } catch (e: Exception) {
+                null
+            }
+            // Load captured image and trigger DosimeterViewModel analysis state progression
             onCaptureClick(bitmap)
         } else {
-            // Camera closed or cancelled: retain default alignment frame gracefully
+            // Dismissed without taking photo: preserve current viewfinder state without crashing
+        }
+    }
+
+    fun launchCamera() {
+        try {
+            val photoFile = File(context.cacheDir, "badge_capture_${System.currentTimeMillis()}.jpg")
+            currentPhotoFile = photoFile
+            val photoUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                photoFile
+            )
+            currentPhotoUri = photoUri
+            takePictureLauncher.launch(photoUri)
+        } catch (e: Exception) {
             onCaptureClick(null)
+        }
+    }
+
+    // Dynamic camera runtime permission launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchCamera()
+        } else {
+            // If permission denied, seamlessly trigger optical analysis progression without crashing
+            onCaptureClick(null)
+        }
+    }
+
+    fun handleCaptureClick() {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            launchCamera()
+        } else {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -227,11 +296,7 @@ fun WristbandScanCard(
                     // Native Camera Trigger Button
                     IconButton(
                         onClick = {
-                            try {
-                                cameraLauncher.launch(null)
-                            } catch (e: Exception) {
-                                onCaptureClick(null)
-                            }
+                            handleCaptureClick()
                         },
                         modifier = Modifier
                             .size(34.dp)
@@ -332,7 +397,7 @@ fun WristbandScanCard(
             // CAPTURE & ANALYZE Button
             val isLockout = readingState == ReadingState.EXPIRED_LOCKOUT
             Button(
-                onClick = { onCaptureClick(null) },
+                onClick = { handleCaptureClick() },
                 enabled = !isScanning && !isLockout,
                 modifier = Modifier
                     .fillMaxWidth()

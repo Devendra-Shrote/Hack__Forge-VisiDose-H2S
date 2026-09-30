@@ -1,6 +1,10 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -35,6 +39,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +51,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.example.model.ColorimetricEngine
 import com.example.ui.components.VirtualViewfinderCanvas
 import com.example.ui.theme.CardBorder
@@ -53,6 +63,7 @@ import com.example.ui.theme.PrimaryScanBlue
 import com.example.ui.theme.TextSlate
 import com.example.ui.theme.TextSteel
 import com.example.viewmodel.DosimeterUiState
+import java.io.File
 import java.util.Locale
 
 @Composable
@@ -64,13 +75,75 @@ fun ScanScreen(
     val lab = ColorimetricEngine.rgbToLab(uiState.stripColor)
     val context = LocalContext.current
 
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
+    var currentPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var currentPhotoFile by remember { mutableStateOf<File?>(null) }
+
+    // TakePicture launcher with FileProvider URI
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            val bitmap = try {
+                val file = currentPhotoFile
+                if (file != null && file.exists()) {
+                    BitmapFactory.decodeFile(file.absolutePath)
+                } else if (currentPhotoUri != null) {
+                    if (android.os.Build.VERSION.SDK_INT >= 28) {
+                        val source = android.graphics.ImageDecoder.createSource(context.contentResolver, currentPhotoUri!!)
+                        android.graphics.ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                            decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, currentPhotoUri!!)
+                    }
+                } else null
+            } catch (e: Exception) {
+                null
+            }
             onCaptureClick(bitmap)
         } else {
+            // Dismissed without taking photo: preserve current viewfinder state without crashing
+        }
+    }
+
+    fun launchCamera() {
+        try {
+            val photoFile = File(context.cacheDir, "badge_capture_${System.currentTimeMillis()}.jpg")
+            currentPhotoFile = photoFile
+            val photoUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                photoFile
+            )
+            currentPhotoUri = photoUri
+            takePictureLauncher.launch(photoUri)
+        } catch (e: Exception) {
             onCaptureClick(null)
+        }
+    }
+
+    // Dynamic camera runtime permission launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchCamera()
+        } else {
+            onCaptureClick(null)
+        }
+    }
+
+    fun handleCaptureClick() {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            launchCamera()
+        } else {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -172,11 +245,7 @@ fun ScanScreen(
 
                         IconButton(
                             onClick = {
-                                try {
-                                    cameraLauncher.launch(null)
-                                } catch (e: Exception) {
-                                    onCaptureClick(null)
-                                }
+                                handleCaptureClick()
                             },
                             modifier = Modifier
                                 .size(34.dp)
@@ -222,7 +291,7 @@ fun ScanScreen(
 
             // Primary Action Button
             Button(
-                onClick = { onCaptureClick(null) },
+                onClick = { handleCaptureClick() },
                 enabled = !uiState.isScanning,
                 modifier = Modifier
                     .fillMaxWidth()
