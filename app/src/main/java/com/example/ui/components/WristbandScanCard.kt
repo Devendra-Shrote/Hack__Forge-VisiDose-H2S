@@ -15,6 +15,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -100,6 +102,8 @@ fun WristbandScanCard(
 
     var currentPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var currentPhotoFile by remember { mutableStateOf<File?>(null) }
+    var capturedBitmap by remember(capturedImage) { mutableStateOf<Bitmap?>(capturedImage) }
+    var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
 
     // TakePicture launcher with FileProvider URI
     val takePictureLauncher = rememberLauncherForActivityResult(
@@ -123,6 +127,9 @@ fun WristbandScanCard(
                 } else null
             } catch (e: Exception) {
                 null
+            }
+            if (bitmap != null) {
+                capturedBitmap = bitmap
             }
             // Load captured image and trigger DosimeterViewModel analysis state progression
             onCaptureClick(bitmap)
@@ -178,12 +185,18 @@ fun WristbandScanCard(
     ) { uri ->
         if (uri != null) {
             try {
+                capturedImageUri = uri
                 val bitmap = if (android.os.Build.VERSION.SDK_INT >= 28) {
                     val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
-                    android.graphics.ImageDecoder.decodeBitmap(source)
+                    android.graphics.ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                        decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                    }
                 } else {
                     @Suppress("DEPRECATION")
                     android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                }
+                if (bitmap != null) {
+                    capturedBitmap = bitmap
                 }
                 onCaptureClick(bitmap)
             } catch (e: Exception) {
@@ -247,13 +260,54 @@ fun WristbandScanCard(
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color(0xFF1E2630))
             ) {
-                // Viewfinder canvas preserving wristband cassette and Cu-PAN calibration card
-                VirtualViewfinderCanvas(
-                    stripColor = stripColor,
-                    isScanning = isScanning,
-                    capturedImage = capturedImage,
-                    modifier = Modifier.fillMaxSize()
-                )
+                val activeBitmap = capturedBitmap ?: capturedImage
+                if (activeBitmap != null) {
+                    // Post-Capture State: Swap out default illustration and display actual captured image
+                    Image(
+                        bitmap = activeBitmap.asImageBitmap(),
+                        contentDescription = "Captured Wristband Photo",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Initial State: Retain exact layout and illustration with wristband cassette and Cu-PAN calibration card
+                    VirtualViewfinderCanvas(
+                        stripColor = stripColor,
+                        isScanning = isScanning,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                // Laser scan line sweep over captured image during scanning
+                if (isScanning && activeBitmap != null) {
+                    val laserTransition = rememberInfiniteTransition(label = "laser_sweep_img")
+                    val laserYRatio by laserTransition.animateFloat(
+                        initialValue = 0.08f,
+                        targetValue = 0.92f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1200, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "laser_pos_img"
+                    )
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val laserY = size.height * laserYRatio
+                        drawLine(
+                            color = Color(0xDD00E5FF),
+                            start = Offset(0f, laserY),
+                            end = Offset(size.width, laserY),
+                            strokeWidth = 2.5f
+                        )
+                        drawLine(
+                            color = Color(0x4400E5FF),
+                            start = Offset(0f, laserY),
+                            end = Offset(size.width, laserY),
+                            strokeWidth = 8f
+                        )
+                    }
+                }
 
                 // Shutter flash effect
                 if (shutterFlashAlpha > 0.02f) {

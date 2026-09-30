@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +48,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -208,12 +211,22 @@ fun ScanScreen(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2630))
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    VirtualViewfinderCanvas(
-                        stripColor = uiState.stripColor,
-                        isScanning = uiState.isScanning,
-                        capturedImage = uiState.capturedImage,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (uiState.capturedImage != null) {
+                        Image(
+                            bitmap = uiState.capturedImage.asImageBitmap(),
+                            contentDescription = "Captured Wristband Photo",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(14.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        VirtualViewfinderCanvas(
+                            stripColor = uiState.stripColor,
+                            isScanning = uiState.isScanning,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
 
                     // Overlay Controls (top right)
                     Row(
